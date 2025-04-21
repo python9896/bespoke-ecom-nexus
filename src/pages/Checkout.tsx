@@ -11,6 +11,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getCart, clearCart } from "@/utils/cartUtils";
+import { v4 as uuidv4 } from "uuid";
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -83,8 +84,11 @@ const Checkout = () => {
         customerId = existingCustomers[0].id;
         console.log("Found existing customer:", customerId);
       } else {
-        // Create customer if not exists
+        // Create customer if not exists - Generate UUID for the customer
+        const newCustomerId = uuidv4();
+        
         const customerData = {
+          id: newCustomerId,
           first_name: firstName,
           last_name: lastName,
           email: email,
@@ -94,7 +98,7 @@ const Checkout = () => {
         
         const { data: newCustomer, error: customerCreateError } = await supabase
           .from('customers')
-          .insert([customerData])
+          .insert(customerData)
           .select();
         
         if (customerCreateError) {
@@ -151,9 +155,10 @@ const Checkout = () => {
 
       // Update inventory (deduct purchased quantities)
       for (const item of cartItems) {
+        // Manual update query instead of using RPC function that's causing typing issues
         const { error: stockUpdateError } = await supabase
           .from('products')
-          .update({ stock: supabase.rpc('decrement', { x: item.quantity }) })
+          .update({ stock: supabase.rpc('decrement_stock', { product_id: item.id, quantity: item.quantity }) })
           .eq('id', item.id)
           .gt('stock', 0);
           

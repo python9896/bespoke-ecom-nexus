@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -23,7 +22,6 @@ interface Product {
 interface Category {
   id: number;
   name: string;
-  
 }
 
 const Shop = () => {
@@ -68,8 +66,7 @@ const Shop = () => {
     fetchCategories();
   }, [selectedCategory]);
 
-  // --- UPDATE: Add toast and force cart update after addToCart ---
-  const handleAddToCart = (product: any) => {
+  const handleAddToCart = (product: Product) => {
     addToCart(product, 1);
     // Optionally, force UI feedback / update after addToCart (if needed)
     // since addToCart already toasts, we don't need additional feedback here
