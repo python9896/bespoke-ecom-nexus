@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 
 export interface CartItem {
@@ -9,10 +10,16 @@ export interface CartItem {
   stock: number;
 }
 
-// Get cart from localStorage
+// Get cart from localStorage with error handling
 export const getCart = (): CartItem[] => {
-  const cart = localStorage.getItem("cart");
-  return cart ? JSON.parse(cart) : [];
+  // Defensive: handle JSON parse errors
+  try {
+    const cart = localStorage.getItem("cart");
+    return cart ? JSON.parse(cart) : [];
+  } catch (e) {
+    localStorage.removeItem("cart");
+    return [];
+  }
 };
 
 // Save cart to localStorage
@@ -54,17 +61,6 @@ export const addToCart = (product: any, quantity: number = 1): void => {
 
     saveCart([...cart, newItem]);
     toast.success(`${product.name} added to cart`);
-  }
-};
-
-export const getCart = (): CartItem[] => {
-  // Defensive: handle JSON parse errors
-  try {
-    const cart = localStorage.getItem("cart");
-    return cart ? JSON.parse(cart) : [];
-  } catch (e) {
-    localStorage.removeItem("cart");
-    return [];
   }
 };
 
