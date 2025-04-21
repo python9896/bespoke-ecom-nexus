@@ -9,22 +9,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { getCart, clearCart } from "@/utils/cartUtils";
 
 const Checkout = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("credit");
 
-  // For demo, we'll simulate getting the cart from localStorage
-  const getCartFromLocalStorage = () => {
-    const cart = localStorage.getItem("cart");
-    return cart ? JSON.parse(cart) : [];
-  };
+  // Customer details
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("ca"); // Default to California
+  const [zipCode, setZipCode] = useState("");
 
-  const cartItems = getCartFromLocalStorage();
+  // Get cart items from localStorage
+  const cartItems = getCart();
 
   const calculateSubtotal = () => {
-    return cartItems.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+    return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   };
 
   const calculateTax = () => {
@@ -51,13 +58,53 @@ const Checkout = () => {
     setLoading(true);
     
     try {
-      // In a real app, you'd save the order to the database here
+      // Create a customer record if it doesn't exist
+      const customerData = {
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        phone: phone,
+        address: `${address}, ${city}, ${state.toUpperCase()} ${zipCode}`
+      };
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Create a new order in Supabase
+      const total = calculateTotal();
+      
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert([
+          { 
+            total: total, 
+            status: 'pending',
+          }
+        ])
+        .select();
+
+      if (orderError) throw orderError;
+      
+      if (!orderData || orderData.length === 0) {
+        throw new Error("Failed to create order");
+      }
+
+      const orderId = orderData[0].id;
+      
+      // Create order items
+      const orderItems = cartItems.map(item => ({
+        order_id: orderId,
+        product_id: item.id,
+        quantity: item.quantity,
+        price: item.price,
+        subtotal: item.price * item.quantity
+      }));
+      
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+        
+      if (itemsError) throw itemsError;
       
       // Clear cart after successful order
-      localStorage.removeItem("cart");
+      clearCart();
       
       toast.success("Order placed successfully!");
       navigate("/order-confirmation");
@@ -105,33 +152,74 @@ const Checkout = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="firstName">First Name</Label>
-                      <Input id="firstName" placeholder="John" required />
+                      <Input 
+                        id="firstName" 
+                        placeholder="John" 
+                        required
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                      />
                     </div>
                     <div>
                       <Label htmlFor="lastName">Last Name</Label>
-                      <Input id="lastName" placeholder="Doe" required />
+                      <Input 
+                        id="lastName" 
+                        placeholder="Doe" 
+                        required
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                      />
                     </div>
                   </div>
                   <div className="mt-4">
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" placeholder="john.doe@example.com" required />
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      placeholder="john.doe@example.com" 
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
                   </div>
                   <div className="mt-4">
                     <Label htmlFor="phone">Phone</Label>
-                    <Input id="phone" placeholder="(123) 456-7890" required />
+                    <Input 
+                      id="phone" 
+                      placeholder="(123) 456-7890" 
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
                   </div>
                   <div className="mt-4">
                     <Label htmlFor="address">Street Address</Label>
-                    <Input id="address" placeholder="123 Main St" required />
+                    <Input 
+                      id="address" 
+                      placeholder="123 Main St" 
+                      required
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-4 mt-4">
                     <div>
                       <Label htmlFor="city">City</Label>
-                      <Input id="city" placeholder="New York" required />
+                      <Input 
+                        id="city" 
+                        placeholder="New York" 
+                        required
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                      />
                     </div>
                     <div>
                       <Label htmlFor="state">State</Label>
-                      <Select required>
+                      <Select 
+                        required
+                        value={state}
+                        onValueChange={setState}
+                      >
                         <SelectTrigger id="state">
                           <SelectValue placeholder="Select state" />
                         </SelectTrigger>
@@ -146,7 +234,13 @@ const Checkout = () => {
                   </div>
                   <div className="mt-4">
                     <Label htmlFor="zipCode">ZIP Code</Label>
-                    <Input id="zipCode" placeholder="10001" required />
+                    <Input 
+                      id="zipCode" 
+                      placeholder="10001" 
+                      required
+                      value={zipCode}
+                      onChange={(e) => setZipCode(e.target.value)}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -218,7 +312,7 @@ const Checkout = () => {
                 <div className="space-y-4">
                   {/* Summary of cart items */}
                   <div className="space-y-2">
-                    {cartItems.map((item: any) => (
+                    {cartItems.map((item) => (
                       <div key={item.id} className="flex justify-between">
                         <span className="text-gray-600">
                           {item.name} <span className="text-gray-400">× {item.quantity}</span>

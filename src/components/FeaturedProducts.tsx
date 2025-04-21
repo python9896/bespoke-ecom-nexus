@@ -3,7 +3,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
+import { addToCart } from "@/utils/cartUtils";
 
 interface Product {
   id: number;
@@ -19,9 +19,8 @@ interface FeaturedProductsProps {
 }
 
 const FeaturedProducts = ({ products }: FeaturedProductsProps) => {
-  const addToCart = (product: Product) => {
-    // This is a placeholder - we'll implement actual cart functionality later
-    toast.success(`${product.name} added to cart`);
+  const handleAddToCart = (product: Product) => {
+    addToCart(product, 1);
   };
 
   if (products.length === 0) {
@@ -58,7 +57,7 @@ const FeaturedProducts = ({ products }: FeaturedProductsProps) => {
           </CardContent>
           <CardFooter className="pt-0">
             <Button 
-              onClick={() => addToCart(product)} 
+              onClick={() => handleAddToCart(product)} 
               className="w-full"
               disabled={product.stock === 0}
             >

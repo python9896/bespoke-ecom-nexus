@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,54 +6,47 @@ import { Separator } from "@/components/ui/separator";
 import { Trash2, Plus, Minus } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-
-// For demo purposes, we'll use localStorage to persist the cart
-interface CartItem {
-  id: number;
-  name: string;
-  price: number;
-  quantity: number;
-  image_url: string | null;
-}
+import { 
+  getCart, 
+  saveCart, 
+  removeFromCart, 
+  updateCartItemQuantity, 
+  CartItem 
+} from "@/utils/cartUtils";
 
 const Cart = () => {
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // For demo, we'll simulate cart retrieval from localStorage
+  // Load cart from localStorage
   useEffect(() => {
-    // In a real app, you might fetch the cart from Supabase
-    const storedCart = localStorage.getItem("cart");
-    if (storedCart) {
-      setCartItems(JSON.parse(storedCart));
-    }
+    setCartItems(getCart());
     setLoading(false);
   }, []);
 
   // Update localStorage when cart changes
   useEffect(() => {
     if (!loading) {
-      localStorage.setItem("cart", JSON.stringify(cartItems));
+      saveCart(cartItems);
     }
   }, [cartItems, loading]);
 
-  const updateQuantity = (id: number, newQuantity: number) => {
+  const handleUpdateQuantity = (id: number, newQuantity: number) => {
     if (newQuantity < 1) return;
     
-    setCartItems(prevItems =>
-      prevItems.map(item => 
-        item.id === id ? { ...item, quantity: newQuantity } : item
-      )
-    );
+    updateCartItemQuantity(id, newQuantity);
+    setCartItems(getCart());
   };
 
-  const removeItem = (id: number) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== id));
+  const handleRemoveItem = (id: number) => {
+    removeFromCart(id);
+    setCartItems(getCart());
     toast.success("Item removed from cart");
   };
 
-  const clearCart = () => {
+  const handleClearCart = () => {
+    localStorage.removeItem("cart");
     setCartItems([]);
     toast.success("Cart cleared");
   };
@@ -77,7 +69,6 @@ const Cart = () => {
       return;
     }
     
-    // In a real app, you'd save the order to the database here
     navigate("/checkout");
   };
 
@@ -89,17 +80,20 @@ const Cart = () => {
         name: "Sample Product 1",
         price: 49.99,
         quantity: 1,
-        image_url: null
+        image_url: null,
+        stock: 10
       },
       {
         id: 2,
         name: "Sample Product 2",
         price: 29.99,
         quantity: 2,
-        image_url: null
+        image_url: null,
+        stock: 5
       }
     ];
     setCartItems(sampleItems);
+    saveCart(sampleItems);
     toast.success("Sample items added to cart");
   };
 
@@ -137,7 +131,7 @@ const Cart = () => {
                 <CardHeader>
                   <div className="flex justify-between items-center">
                     <CardTitle>Cart Items</CardTitle>
-                    <Button variant="ghost" size="sm" onClick={clearCart}>
+                    <Button variant="ghost" size="sm" onClick={handleClearCart}>
                       Clear Cart
                     </Button>
                   </div>
@@ -172,7 +166,7 @@ const Cart = () => {
                             variant="outline" 
                             size="icon" 
                             className="h-8 w-8 p-0"
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
@@ -180,7 +174,7 @@ const Cart = () => {
                           <Input
                             type="number"
                             value={item.quantity}
-                            onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1)}
+                            onChange={(e) => handleUpdateQuantity(item.id, parseInt(e.target.value) || 1)}
                             className="h-8 w-14 text-center"
                             min="1"
                           />
@@ -189,7 +183,7 @@ const Cart = () => {
                             variant="outline" 
                             size="icon" 
                             className="h-8 w-8 p-0"
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
@@ -202,7 +196,7 @@ const Cart = () => {
                         <Button 
                           variant="ghost" 
                           size="icon"
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => handleRemoveItem(item.id)}
                           className="text-gray-500 hover:text-red-500"
                         >
                           <Trash2 className="h-4 w-4" />

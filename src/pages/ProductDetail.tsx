@@ -1,11 +1,12 @@
 
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ShoppingCart, Star } from "lucide-react";
 import { toast } from "sonner";
+import { addToCart } from "@/utils/cartUtils";
 
 interface Product {
   id: number;
@@ -36,6 +37,7 @@ const ProductDetail = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -48,7 +50,7 @@ const ProductDetail = () => {
               name
             )
           `)
-          .eq("id", parseInt(id || '0')) // Convert string id to number
+          .eq("id", parseInt(id || '0'))
           .single();
 
         if (error) throw error;
@@ -58,7 +60,7 @@ const ProductDetail = () => {
         const { data: reviewsData, error: reviewsError } = await supabase
           .from("reviews")
           .select("*")
-          .eq("product_id", parseInt(id || '0')); // Convert string id to number
+          .eq("product_id", parseInt(id || '0'));
 
         if (reviewsError) throw reviewsError;
         setReviews(reviewsData || []);
@@ -75,9 +77,11 @@ const ProductDetail = () => {
     }
   }, [id]);
 
-  const addToCart = () => {
+  const handleAddToCart = () => {
     if (!product) return;
-    toast.success(`Added ${quantity} ${product.name} to cart`);
+    addToCart(product, quantity);
+    // Optional: navigate to cart after adding
+    // navigate("/cart");
   };
 
   const increaseQuantity = () => {
@@ -114,7 +118,7 @@ const ProductDetail = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
           {/* Product Image */}
           <div className="bg-white p-4 rounded-lg shadow-sm">
-            {product.image_url ? (
+            {product?.image_url ? (
               <img
                 src={product.image_url}
                 alt={product.name}
@@ -129,7 +133,7 @@ const ProductDetail = () => {
 
           {/* Product Details */}
           <div>
-            <h1 className="text-3xl font-bold">{product.name}</h1>
+            <h1 className="text-3xl font-bold">{product?.name}</h1>
             
             <div className="flex items-center mt-2">
               <div className="flex items-center">
@@ -137,7 +141,7 @@ const ProductDetail = () => {
                   <Star
                     key={index}
                     className={`h-5 w-5 ${
-                      index < Math.round(product.rating || 0)
+                      index < Math.round(product?.rating || 0)
                         ? "text-yellow-400 fill-yellow-400"
                         : "text-gray-300"
                     }`}
@@ -147,9 +151,9 @@ const ProductDetail = () => {
               <span className="ml-2 text-gray-600">({reviews.length} reviews)</span>
             </div>
             
-            <p className="text-2xl font-bold text-primary mt-4">${product.price}</p>
+            <p className="text-2xl font-bold text-primary mt-4">${product?.price}</p>
             
-            {product.category && (
+            {product?.category && (
               <div className="mt-4">
                 <span className="text-sm font-medium bg-gray-100 px-2 py-1 rounded">
                   {product.category.name}
@@ -159,17 +163,17 @@ const ProductDetail = () => {
             
             <div className="mt-6">
               <h3 className="text-lg font-medium">Description</h3>
-              <p className="mt-2 text-gray-600">{product.description}</p>
+              <p className="mt-2 text-gray-600">{product?.description}</p>
             </div>
             
             <div className="mt-6">
               <h3 className="text-lg font-medium">Availability</h3>
-              <p className={`mt-2 ${product.stock > 0 ? "text-green-600" : "text-red-600"}`}>
-                {product.stock > 0 ? `In Stock (${product.stock} available)` : "Out of Stock"}
+              <p className={`mt-2 ${product?.stock ? product.stock > 0 ? "text-green-600" : "text-red-600" : ""}`}>
+                {product?.stock ? product.stock > 0 ? `In Stock (${product.stock} available)` : "Out of Stock" : ""}
               </p>
             </div>
             
-            {product.stock > 0 && (
+            {product?.stock && product.stock > 0 && (
               <div className="mt-6">
                 <h3 className="text-lg font-medium mb-2">Quantity</h3>
                 <div className="flex items-center">
@@ -198,11 +202,11 @@ const ProductDetail = () => {
               <Button
                 size="lg"
                 className="w-full"
-                onClick={addToCart}
-                disabled={product.stock === 0}
+                onClick={handleAddToCart}
+                disabled={!product?.stock || product.stock === 0}
               >
                 <ShoppingCart className="mr-2 h-5 w-5" />
-                {product.stock > 0 ? "Add to Cart" : "Out of Stock"}
+                {product?.stock && product.stock > 0 ? "Add to Cart" : "Out of Stock"}
               </Button>
             </div>
           </div>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -7,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShoppingCart, Search } from "lucide-react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
+import { addToCart } from "@/utils/cartUtils";
 
 interface Product {
   id: number;
@@ -66,8 +65,8 @@ const Shop = () => {
     fetchCategories();
   }, [selectedCategory]);
 
-  const addToCart = (product: Product) => {
-    toast.success(`${product.name} added to cart`);
+  const handleAddToCart = (product: Product) => {
+    addToCart(product, 1);
   };
 
   const handleSearch = async () => {
@@ -113,7 +112,6 @@ const Shop = () => {
       <div className="max-w-7xl mx-auto px-6 py-10">
         <h1 className="text-3xl font-bold mb-8">Shop All Products</h1>
 
-        {/* Filter and Search Controls */}
         <div className="flex flex-col md:flex-row gap-4 mb-8">
           <div className="flex-grow flex gap-2">
             <Input
@@ -184,7 +182,7 @@ const Shop = () => {
                     </CardContent>
                     <CardFooter className="pt-0">
                       <Button 
-                        onClick={() => addToCart(product)} 
+                        onClick={() => handleAddToCart(product)} 
                         className="w-full"
                         disabled={product.stock === 0}
                       >
