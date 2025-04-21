@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ShoppingCart, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { addToCart } from "@/utils/cartUtils";
+import { toast } from "sonner";
 
 interface Product {
   id: number;
