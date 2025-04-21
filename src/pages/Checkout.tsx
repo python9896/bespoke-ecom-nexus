@@ -69,25 +69,52 @@ const Checkout = () => {
         zipCode
       });
 
-      // Create customer string for order record (not inserting to customers table per current schema)
-      const customerData = {
-        first_name: firstName,
-        last_name: lastName,
-        email: email,
-        phone: phone,
-        address: `${address}, ${city}, ${state.toUpperCase()} ${zipCode}`
-      };
+      // First try to find if customer exists by email
+      let customerId = null;
+      const { data: existingCustomers, error: customerLookupError } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('email', email)
+        .limit(1);
+      
+      if (customerLookupError) {
+        console.error("Error looking up customer:", customerLookupError);
+      } else if (existingCustomers && existingCustomers.length > 0) {
+        customerId = existingCustomers[0].id;
+        console.log("Found existing customer:", customerId);
+      } else {
+        // Create customer if not exists
+        const customerData = {
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+          phone: phone,
+          address: `${address}, ${city}, ${state.toUpperCase()} ${zipCode}`
+        };
+        
+        const { data: newCustomer, error: customerCreateError } = await supabase
+          .from('customers')
+          .insert([customerData])
+          .select();
+        
+        if (customerCreateError) {
+          console.error("Error creating customer:", customerCreateError);
+        } else if (newCustomer && newCustomer.length > 0) {
+          customerId = newCustomer[0].id;
+          console.log("Created new customer:", customerId);
+        }
+      }
 
       const total = calculateTotal();
 
-      // --- Fix: ensure order insert returns data and was successful ---
+      // Create order with customer_id if available
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert([
           { 
             total: total, 
             status: 'pending',
-            // Optionally can add more fields if available
+            customer_id: customerId
           }
         ])
         .select();
@@ -101,22 +128,40 @@ const Checkout = () => {
 
       const orderId = orderData[0].id;
 
-      // --- Fix: Map order items for created order ---
-      const orderItems = cartItems.map(item => ({
-        order_id: orderId,
-        product_id: item.id,
-        quantity: item.quantity,
-        price: item.price,
-        subtotal: item.price * item.quantity
-      }));
+      // Fix: Create order items without setting subtotal field
+      for (const item of cartItems) {
+        const orderItem = {
+          order_id: orderId,
+          product_id: item.id,
+          quantity: item.quantity,
+          price: item.price,
+          // Remove subtotal as it's likely a computed column in the database
+        };
+        
+        // Insert each item individually for better error tracking
+        const { error: itemError } = await supabase
+          .from('order_items')
+          .insert(orderItem);
+          
+        if (itemError) {
+          console.error(`Error inserting order item for product ${item.id}:`, itemError);
+          throw itemError;
+        }
+      }
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-
-      console.log("Order items insert result:", itemsError);
-
-      if (itemsError) throw itemsError;
+      // Update inventory (deduct purchased quantities)
+      for (const item of cartItems) {
+        const { error: stockUpdateError } = await supabase
+          .from('products')
+          .update({ stock: supabase.rpc('decrement', { x: item.quantity }) })
+          .eq('id', item.id)
+          .gt('stock', 0);
+          
+        if (stockUpdateError) {
+          console.warn(`Failed to update stock for product ${item.id}:`, stockUpdateError);
+          // Don't throw error here, continue with order
+        }
+      }
 
       clearCart();
 
