@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,7 +38,7 @@ const CategoryPage = () => {
         const { data: categoryData, error: categoryError } = await supabase
           .from("categories")
           .select("*")
-          .eq("id", id)
+          .eq("id", parseInt(id || '0'))
           .single();
 
         if (categoryError) throw categoryError;
@@ -49,7 +48,7 @@ const CategoryPage = () => {
         const { data: productsData, error: productsError } = await supabase
           .from("products")
           .select("*")
-          .eq("category_id", id);
+          .eq("category_id", parseInt(id || '0'));
 
         if (productsError) throw productsError;
         setProducts(productsData || []);
