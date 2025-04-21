@@ -48,7 +48,7 @@ const ProductDetail = () => {
               name
             )
           `)
-          .eq("id", id)
+          .eq("id", parseInt(id || '0')) // Convert string id to number
           .single();
 
         if (error) throw error;
@@ -58,7 +58,7 @@ const ProductDetail = () => {
         const { data: reviewsData, error: reviewsError } = await supabase
           .from("reviews")
           .select("*")
-          .eq("product_id", id);
+          .eq("product_id", parseInt(id || '0')); // Convert string id to number
 
         if (reviewsError) throw reviewsError;
         setReviews(reviewsData || []);
