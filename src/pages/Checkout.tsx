@@ -48,17 +48,28 @@ const Checkout = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (cartItems.length === 0) {
       toast.error("Your cart is empty");
       navigate("/cart");
       return;
     }
-    
     setLoading(true);
-    
+
     try {
-      // Create a customer record if it doesn't exist
+      // For debugging: log all details so we can investigate errors
+      console.log("Checkout: submitting...", {
+        cartItems,
+        firstName,
+        lastName,
+        email,
+        phone,
+        address,
+        city,
+        state,
+        zipCode
+      });
+
+      // Create customer string for order record (not inserting to customers table per current schema)
       const customerData = {
         first_name: firstName,
         last_name: lastName,
@@ -66,29 +77,31 @@ const Checkout = () => {
         phone: phone,
         address: `${address}, ${city}, ${state.toUpperCase()} ${zipCode}`
       };
-      
-      // Create a new order in Supabase
+
       const total = calculateTotal();
-      
+
+      // --- Fix: ensure order insert returns data and was successful ---
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert([
           { 
             total: total, 
             status: 'pending',
+            // Optionally can add more fields if available
           }
         ])
         .select();
 
+      console.log("Order insert result:", { orderData, orderError });
+
       if (orderError) throw orderError;
-      
       if (!orderData || orderData.length === 0) {
-        throw new Error("Failed to create order");
+        throw new Error("Failed to create order (empty orderData)");
       }
 
       const orderId = orderData[0].id;
-      
-      // Create order items
+
+      // --- Fix: Map order items for created order ---
       const orderItems = cartItems.map(item => ({
         order_id: orderId,
         product_id: item.id,
@@ -96,21 +109,22 @@ const Checkout = () => {
         price: item.price,
         subtotal: item.price * item.quantity
       }));
-      
+
       const { error: itemsError } = await supabase
         .from('order_items')
         .insert(orderItems);
-        
+
+      console.log("Order items insert result:", itemsError);
+
       if (itemsError) throw itemsError;
-      
-      // Clear cart after successful order
+
       clearCart();
-      
+
       toast.success("Order placed successfully!");
       navigate("/order-confirmation");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error placing order:", error);
-      toast.error("Failed to place order. Please try again.");
+      toast.error(`Failed to place order. ${error?.message || ""}`);
     } finally {
       setLoading(false);
     }
